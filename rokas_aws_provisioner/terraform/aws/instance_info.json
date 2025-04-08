@@ -1,0 +1,22 @@
+{
+  "instance_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "i-0ecdc1dac9793a3d8"
+  },
+  "instance_profile": {
+    "sensitive": false,
+    "type": "string",
+    "value": "ec2_instance_profile"
+  },
+  "private_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "10.0.1.167"
+  },
+  "public_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "51.20.66.63"
+  }
+}

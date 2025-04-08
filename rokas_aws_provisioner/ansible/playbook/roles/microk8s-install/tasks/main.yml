@@ -1,0 +1,110 @@
+---
+- name: Update apt repository
+  apt:
+    update_cache: yes
+
+- name: Install Snapd
+  apt:
+    name: snapd
+    state: present
+
+- name: Install Python pip
+  apt:
+    name: python3-pip
+    state: present
+
+- name: Install Kubernetes Python client
+  pip:
+    name: kubernetes
+    state: present
+
+- name: Install MicroK8s
+  snap:
+    name: microk8s
+    state: present
+    classic: true
+
+- name: Add user to microk8s group
+  user:
+    name: ubuntu
+    groups: microk8s
+    append: yes
+
+- name: Enable MicroK8s addons
+  command: microk8s.enable dns storage ingress
+  register: microk8s_installed
+
+- name: Wait for MicroK8s to be ready
+  command: microk8s.status
+  register: status
+  until: status.rc == 0
+  retries: 5
+  delay: 10
+
+- name: Check MicroK8s status
+  command: microk8s.status
+  register: microk8s_status
+
+- name: Display MicroK8s status
+  debug:
+    var: microk8s_status.stdout
+
+- name: Add MicroK8s KUBECONFIG to bashrc
+  lineinfile:
+    path: /home/ubuntu/.bashrc
+    line: 'export KUBECONFIG=/var/snap/microk8s/current/credentials/client.config'
+    create: yes
+    state: present
+
+- name: Enable NGINX ingress
+  command: microk8s.enable ingress
+  register: nginx_ingress
+
+- name: Deploy NGINX application
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: nginx
+        namespace: default
+        labels:
+          app: nginx
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: nginx
+        template:
+          metadata:
+            labels:
+              app: nginx
+          spec:
+            containers:
+              - name: nginx
+                image: nginx:latest
+                ports:
+                  - containerPort: 80
+  environment:
+    KUBECONFIG: /var/snap/microk8s/current/credentials/client.config
+
+- name: Expose NGINX service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: nginx
+        namespace: default
+      spec:
+        type: NodePort
+        ports:
+          - port: 80
+            targetPort: 80
+            nodePort: 30080
+        selector:
+          app: nginx
+  environment:
+    KUBECONFIG: /var/snap/microk8s/current/credentials/client.config

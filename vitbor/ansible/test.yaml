@@ -1,0 +1,12 @@
+---
+- name: Provision and Configure Environment
+  hosts: localhost
+  tasks:
+    - name: Get EC2 instance public IP from Terraform
+      command: terraform output -json
+      args:
+        chdir: /mnt/c/Users/vitbo/workspace/terraform/practice_2
+      register: terraform_output
+    - name: Debug terraform_output
+      debug:
+        var: terraform_output.stdout

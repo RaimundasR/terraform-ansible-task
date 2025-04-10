@@ -1,0 +1,34 @@
+---
+- name: Install and Configure MicroK8s
+  hosts: aws
+  become: true
+  tasks:
+    - name: Wait for SSH to be available
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        timeout: 300
+        state: started
+
+    - name: Install snapd
+      apt:
+        name: snapd
+        state: present
+
+    - name: Install MicroK8s
+      shell: snap install microk8s --classic
+
+    - name: Allow non-root access to MicroK8s
+      shell: usermod -aG microk8s {{ ansible_user }}
+
+    - name: Configure MicroK8s
+      shell: microk8s status --wait-ready
+
+    - name: Enable dns add-on
+      shell: microk8s enable dns
+
+    - name: Enable storage add-on
+      shell: microk8s enable storage
+
+    - name: Enable ingress add-on
+      shell: microk8s enable ingress

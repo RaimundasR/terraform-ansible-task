@@ -1,0 +1,95 @@
+---
+- name: Provision and Configure Environment
+  hosts: localhost
+  tasks:
+    # Step 1: Install Terraform
+    - name: Ensure Terraform is installed
+      apt:
+        name: terraform
+        state: present
+
+    # Step 2: Initialize Terraform
+    - name: Initialize Terraform configuration
+      command: terraform init
+      args:
+        chdir: /mnt/c/Users/vitbo/workspace/terraform/practice_2
+
+    # Step 3: Apply Terraform plan
+    - name: Apply Terraform configuration
+      command: terraform apply -auto-approve
+      args:
+        chdir: /mnt/c/Users/vitbo/workspace/terraform/practice_2
+
+    - name: Wait for EC2 instance initialization
+      pause:
+        seconds: 60
+
+    # Step 4: Parse Terraform output for EC2 public IP
+    
+    - name: Get EC2 instance public IP from Terraform
+      command: terraform output -json
+      args:
+        chdir: /mnt/c/Users/vitbo/workspace/terraform/practice_2
+      register: terraform_output
+
+    - name: Extract EC2 public IP from Terraform output
+      set_fact:
+        ec2_public_ip: "{{ terraform_output.stdout | from_json | json_query('ec2_public_ip.value') }}"
+
+    # Step 5: Create Ansible inventory dynamically
+    - name: Generate Ansible inventory
+      copy:
+        dest: /mnt/c/Users/vitbo/workspace/ansible/practice_2/inventory/aws.yaml
+        content: |
+          all:
+            children:
+              aws:
+                hosts:
+                  {{ ec2_public_ip }}:
+                    ansible_user: ubuntu
+                    ansible_ssh_private_key_file: /mnt/c/Users/vitbo/.ssh/vitbor-ubuntu.pem
+                    ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        force: true
+    
+    - name: Refresh inventory to load updated aws.yaml
+      meta: refresh_inventory
+
+    # Host debug                       
+#    - name: Debug hosts in aws group
+#      debug:
+#        var: groups['aws']
+
+    # Step 6: Deploy MicroK8s with required add-ons
+- name: Configure MicroK8s on EC2
+  hosts: aws
+  become: true
+  tasks:
+    - name: Wait for SSH to be available
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        timeout: 300
+        state: started
+
+    - name: Install snapd
+      apt:
+        name: snapd
+        state: present
+
+    - name: Install MicroK8s
+      shell: snap install microk8s --classic
+
+    - name: Allow non-root access to MicroK8s
+      shell: usermod -aG microk8s {{ ansible_user }}
+
+    - name: Configure MicroK8s
+      shell: microk8s status --wait-ready
+
+    - name: Enable dns add-on
+      shell: microk8s enable dns
+
+    - name: Enable storage add-on
+      shell: microk8s enable storage
+
+    - name: Enable ingress add-on
+      shell: microk8s enable ingress

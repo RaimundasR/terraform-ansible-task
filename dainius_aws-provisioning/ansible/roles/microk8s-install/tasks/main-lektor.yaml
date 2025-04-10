@@ -1,0 +1,54 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install snapd and curl
+  apt:
+    name:
+      - snapd
+      - curl
+    state: present
+    
+- name: Ensure snapd.socket is enabled and started
+  systemd:
+    name: snapd.socket
+    enabled: yes
+    state: started
+
+- name: Wait a few seconds for snap to settle
+  pause:
+    seconds: 10
+
+- name: Check if /snap already exists
+  stat:
+    path: /snap
+  register: snap_path
+
+- name: Create /snap symlink only if it doesn't exist
+  file:
+    src: /var/lib/snapd/snap
+    dest: /snap
+    state: link
+  when: snap_path.stat.exists == false
+
+- name: Install MicroK8s
+  command: snap install microk8s --classic
+  environment:
+    PATH: "/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+- name: Add 'ubuntu' user to microk8s group
+  user:
+    name: ubuntu
+    groups: microk8s
+    append: yes
+
+- name: Enable MicroK8s DNS
+  command: microk8s enable dns
+  environment:
+    PATH: "/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+- name: Enable MicroK8s Ingress
+  command: microk8s enable ingress
+  become: true
+  environment:
+    PATH: "/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin"

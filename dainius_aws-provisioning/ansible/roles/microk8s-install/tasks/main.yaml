@@ -1,0 +1,90 @@
+- name: Wait for SSH to become available
+  wait_for:
+    port: 22
+    host: "{{ ansible_host }}"
+    timeout: 300
+    state: started
+
+#- name: Ensure user has passwordless sudo
+#  lineinfile:
+#    path: /etc/sudoers.d/90-cloud-init-users
+#    line: "ubuntu ALL=(ALL) NOPASSWD:ALL"
+#    create: yes
+#    validate: 'visudo -cf %s'
+
+- name: Update APT cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    
+- name: Install snapd and curl
+  apt:
+    name: 
+      - snapd
+      - curl
+    state: present
+
+- name: Ensure snapd.socket is enabled and started
+  systemd:
+    name: snapd.socket
+    enabled: yes
+    state: started
+
+- name: Wait a few seconds for snap to settle
+  pause:
+    seconds: 10
+
+- name: Check if /snap already exists
+  stat:
+    path: /snap
+  register: snap_path
+
+- name: Create /snap symlink only if it doesn't exist
+  file:
+    src: /var/lib/snapd/snap
+    dest: /snap
+    state: link
+  when: snap_path.stat.exists == false
+
+#- name: Install MicroK8s
+#  snap:
+#    name: microk8s
+#    classic: yes
+#    state: present
+
+- name: Install MicroK8s
+  command: snap install microk8s --classic
+  environment:
+    PATH: "/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+- name: Add ubuntu to microk8s group
+  user:
+    name: ubuntu
+    groups: microk8s
+    append: yes
+
+- name: Enable MicroK8s addons
+  become: true
+  shell: "microk8s enable {{ item }}"
+  loop: "{{ microk8s_addons }}"
+  environment:
+    PATH: "/snap/bin:{{ ansible_env.PATH }}"
+
+#
+
+#- name: Alias kubectl
+#  shell: "snap alias microk8s.kubectl kubectl"
+#  ignore_errors: yes
+
+#- name: Create .kube directory
+#  file:
+#    path: /home/ubuntu/.kube
+#    state: directory
+#    owner: ubuntu
+#    group: ubuntu
+#    mode: '0755'
+
+#- name: Export kubeconfig
+#  shell: |
+#    microk8s config > /home/ubuntu/.kube/config
+#  become_user: ubuntu

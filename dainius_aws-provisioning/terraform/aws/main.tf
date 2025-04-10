@@ -70,6 +70,13 @@ resource "aws_security_group" "ssh" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  ingress {
+    description = "Allow MicroK8s API (port 16443)"
+    from_port   = 16443
+    to_port     = 16443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   egress {
     from_port   = 0

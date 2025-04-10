@@ -3,3 +3,4 @@
   become: true
   roles:
     - microk8s-install
+    - fluxcd-install

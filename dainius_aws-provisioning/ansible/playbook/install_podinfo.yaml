@@ -1,0 +1,5 @@
+- name: Install Podinfo
+  hosts: microk8s
+  become: true
+  roles:
+    - podinfo-install

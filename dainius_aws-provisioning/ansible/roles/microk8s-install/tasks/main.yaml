@@ -1,3 +1,4 @@
+
 - name: Wait for SSH to become available
   wait_for:
     port: 22
@@ -76,15 +77,40 @@
 #  shell: "snap alias microk8s.kubectl kubectl"
 #  ignore_errors: yes
 
-#- name: Create .kube directory
-#  file:
-#    path: /home/ubuntu/.kube
-#    state: directory
-#    owner: ubuntu
-#    group: ubuntu
-#    mode: '0755'
+- name: Create .kube directory
+  file:
+    path: /home/ubuntu/.kube
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: 0700
 
-#- name: Export kubeconfig
-#  shell: |
-#    microk8s config > /home/ubuntu/.kube/config
-#  become_user: ubuntu
+- name: Export MicroK8s config to ~/.kube/config for ubuntu
+  become: true
+  shell: microk8s config > /home/ubuntu/.kube/config
+  args:
+    executable: /bin/bash
+  environment:
+    PATH: "/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+- name: Fix permissions for kubeconfig
+  become: true
+  file:
+    path: /home/ubuntu/.kube/config
+    owner: ubuntu
+    group: ubuntu
+    mode: 0600
+
+- name: Copy kube config from remote to local
+  fetch:
+    src: "/home/ubuntu/.kube/config"
+    dest: "{{ kube_config_file }}"
+    flat: yes
+    
+- name: Replace server IP in kubeconfig (locally, no regex, no sponge)
+  ansible.builtin.shell: >
+    awk -v newip="{{ ansible_host }}" '{if ($0 ~ /server: https:\/\//) {split($2, parts, ":"); port = parts[3]; print "    server: https://" newip ":" port} else {print $0}}' {{ kube_config_file }} > {{ kube_config_file }}.newip
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  become: false

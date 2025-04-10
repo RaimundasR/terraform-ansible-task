@@ -1,0 +1,34 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install snapd and curl
+  apt:
+    name:
+      - snapd
+      - curl
+    state: present
+
+- name: Install MicroK8s
+  snap:
+    name: microk8s
+    state: present
+    classic: true
+
+- name: Add ubuntu user to microk8s group
+  user:
+    name: ubuntu
+    groups: microk8s
+    append: yes
+
+- name: Enable MicroK8s addons
+  command: microk8s enable {{ item }}
+  loop: "{{ microk8s_enable_addons }}"
+  become: true
+  environment:
+    PATH: "/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+- name: Wait for MicroK8s to become ready
+  command: microk8s status --wait-ready
+  become: true

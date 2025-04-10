@@ -1,0 +1,35 @@
+# SSH raktai ir slapta informacija
+*.pem
+*.key
+*.pub
+*.crt
+*.enc
+*.gpg
+
+# Ansible inventorius su IP ar raktais
+ansible/inventory/aws.yaml
+
+# Terraform būsenos failai
+terraform/**/terraform.tfstate
+terraform/**/terraform.tfstate.*
+terraform/**/.terraform/
+terraform/**/.terraform.lock.hcl
+terraform/**/crash.log
+
+# Ansible cache
+*.retry
+*.log
+
+# Netikėtini dump'ai ar testiniai failai
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# Python virtualenv
+.venv/
+__pycache__/
+
+# Mac/Linux nešvarumai
+.DS_Store
+Thumbs.db
